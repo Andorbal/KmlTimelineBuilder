@@ -15,6 +15,8 @@ namespace KmlTimelineBuilder {
       Elevation = Decimal.Parse(pieces[8].Replace("M", string.Empty));
     }
 
+    public Reading() {}
+
     public DateTime DateTime { get; set; }
     public string Validity { get; set; }
     public decimal Latitude { get; set; }

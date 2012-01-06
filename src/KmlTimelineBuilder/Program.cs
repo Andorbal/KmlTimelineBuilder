@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,12 +9,11 @@ using System.Xml;
 namespace KmlTimelineBuilder {
   class Program {
     static void Main(string[] args) {
-      var inputFileName = args[0];
+      var inputPath = args[0];
 
-
-      var files = Directory.GetFiles(inputFileName, "*.csv");
+      var files = Directory.GetFiles(inputPath, "*.csv");
       foreach (var filePath in files) {
-        var outputFileName = Path.Combine(inputFileName, Path.GetFileNameWithoutExtension(filePath) + ".kml");
+        var outputFileName = Path.Combine(inputPath, Path.GetFileNameWithoutExtension(filePath) + ".kml");
 
         using (var output = File.OpenWrite(outputFileName)) {
           using (var xml = new XmlTextWriter(output, Encoding.UTF8)) {
@@ -22,7 +22,9 @@ namespace KmlTimelineBuilder {
             xml.WriteStartElement("kml", "http://earth.google.com/kml/2.2");
             xml.WriteStartElement("Document");
             xml.WriteElementString("name", Path.GetFileNameWithoutExtension(filePath));
+
             WriteCsvFile(xml, filePath);
+            
             xml.WriteEndElement();  // Document
             xml.WriteEndDocument();
           }
@@ -34,6 +36,7 @@ namespace KmlTimelineBuilder {
       using (var input = File.OpenRead(inputFileName)) {
         using (var reader = new StreamReader(input)) {
           xml.WriteStartElement("Folder");
+          xml.WriteElementString("name", "Timeline data");
 
           var lineList = new List<Reading>();
 
@@ -50,43 +53,63 @@ namespace KmlTimelineBuilder {
             WriteTimelinePlacemark(xml, reading);
           }
 
-          WriteLookAtElement(lineList.First(), xml);
+          var sampleReading = new Reading()
+                              {
+                                Latitude = GetMiddleValue(lineList, x => x.Latitude),
+                                Longitude = GetMiddleValue(lineList, x => x.Longitude), 
+                                Elevation = lineList.Select(x => x.Elevation).Max()
+                              };
+
+          WriteLookAtElement(sampleReading, xml);
 
           xml.WriteEndElement(); // Folder
 
-          WriteLookAtElement(lineList.First(), xml);
-
-          xml.WriteStartElement("Style");
-          xml.WriteAttributeString("id", "seeadler-dot-icon");
-          xml.WriteStartElement("IconStyle");
-          xml.WriteStartElement("Icon");
-          xml.WriteElementString("href", "http://www.seeadlerpost.com/images/KML/dot.png");
-          xml.WriteEndElement(); // Icon
-          xml.WriteEndElement(); // IconStyle
-          xml.WriteEndElement(); // Style
-
-          xml.WriteStartElement("Placemark");
-          xml.WriteElementString("name", "Travel path");
-
-          xml.WriteStartElement("Style");
-          xml.WriteStartElement("LineStyle");
-          xml.WriteElementString("color", "ff0000ff");
-          xml.WriteElementString("width", "2");
-          xml.WriteEndElement(); // LineStyle
-          xml.WriteEndElement(); // Style
-
-          xml.WriteStartElement("LineString");
-          xml.WriteElementString("tessellate", "1");
-          xml.WriteElementString("altitudeMode", "clampToGround");
-          xml.WriteStartElement("coordinates");
-          foreach (var reading in lineList) {
-            xml.WriteString(string.Format("{0},{1} ", reading.Longitude, reading.Latitude));
-          }
-          xml.WriteEndElement(); // coordinates
-          xml.WriteEndElement(); // LineString
-          xml.WriteEndElement(); // Placemark
+          WriteLookAtElement(sampleReading, xml);
+          WriteIconStyle(xml);
+          WriteLineString(xml, lineList);
         }
       }
+    }
+
+    private static decimal GetMiddleValue(List<Reading> lineList, Func<Reading, decimal> selector) {
+      return (new[] {
+                      lineList.Select(selector).Max(),
+                      lineList.Select(selector).Min()
+                    }).Average();
+    }
+
+    private static void WriteLineString(XmlTextWriter xml, List<Reading> lineList) {
+      xml.WriteStartElement("Placemark");
+      xml.WriteElementString("name", "Travel path");
+
+      xml.WriteStartElement("Style");
+      xml.WriteStartElement("LineStyle");
+      xml.WriteElementString("color", "ff0000ff");
+      xml.WriteElementString("width", "2");
+      xml.WriteEndElement(); // LineStyle
+      xml.WriteEndElement(); // Style
+
+      xml.WriteStartElement("LineString");
+      xml.WriteElementString("tessellate", "1");
+      xml.WriteElementString("altitudeMode", "clampToGround");
+      xml.WriteStartElement("coordinates");
+      foreach (var reading in lineList) {
+        xml.WriteString(string.Format("{0},{1} ", reading.Longitude, reading.Latitude));
+      }
+      xml.WriteEndElement(); // coordinates
+      xml.WriteEndElement(); // LineString
+      xml.WriteEndElement(); // Placemark
+    }
+
+    private static void WriteIconStyle(XmlTextWriter xml) {
+      xml.WriteStartElement("Style");
+      xml.WriteAttributeString("id", "seeadler-dot-icon");
+      xml.WriteStartElement("IconStyle");
+      xml.WriteStartElement("Icon");
+      xml.WriteElementString("href", "http://www.seeadlerpost.com/images/KML/dot.png");
+      xml.WriteEndElement(); // Icon
+      xml.WriteEndElement(); // IconStyle
+      xml.WriteEndElement(); // Style
     }
 
     private static void WriteTimelinePlacemark(XmlTextWriter xml, Reading reading) {
