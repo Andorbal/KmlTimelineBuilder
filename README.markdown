@@ -12,6 +12,8 @@ To use the tool, run it with the following syntax:
 
 ``KmlTimelineBuilder c:\path\to\data``
 
+After the .kml files are built, just open them up in Google Earth and use the built in tools to view and edit the data.  You can change the line color, names, and any other piece of information in Google Earth.  If you do this, ensure that you move the .kml files out of the original path, because re-running the tool will overwrite the files.
+
 ## Expected Input Format
 
 ``Date/Time,Validity,Latitude,Longitude,Speed,True Course,Variation,Checksum,Elevation``
