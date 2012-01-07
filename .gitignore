@@ -2,4 +2,5 @@
 *.user
 bin
 obj
+release
 _ReSharper.KmlTimelineBuilder
